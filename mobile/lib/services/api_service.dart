@@ -12,11 +12,10 @@ class ApiService {
       return 'http://10.0.2.2:3000';
     } else if (Platform.isIOS) {
       // iOS simulator can use localhost
-      return 'http://localhost:3000';
+      return 'http://127.0.0.1:3000';
     } else {
       // For physical devices, you should use your actual backend URL
-      // TODO: Replace with your production backend URL
-      return 'http://localhost:3000';
+      return 'http://127.0.0.1:3000';
     }
   }
   static const _storage = FlutterSecureStorage();
@@ -63,29 +62,14 @@ class ApiService {
   // GitHub OAuth
   Future<String> initiateGitHubOAuth() async {
     try {
-      final response = await http.get(
-        Uri.parse('$_baseUrl/auth/github/init'),
-        headers: {'Content-Type': 'application/json'},
-      ).timeout(
-        const Duration(seconds: 10),
-        onTimeout: () => throw Exception('Connection timeout. Please check your internet connection.'),
-      );
-      
-      if (response.statusCode != 200) {
-        print('Server response: ${response.body}');
-        throw Exception('Server returned ${response.statusCode}: ${response.body}');
-      }
-      
-      final data = _handleResponse(response);
-      if (data == null || data['authUrl'] == null) {
-        throw Exception('Invalid response format: missing authUrl');
-      }
+      print('Initiating GitHub OAuth with URL: $_baseUrl/auth/github/init');
+      final response = await http.get(Uri.parse('$_baseUrl/auth/github/init'));
+      print('Response status code: ${response.statusCode}');
+      print('Response body: ${response.body}');
+      final data = jsonDecode(response.body);
       return data['authUrl'];
-    } on SocketException catch (e) {
-      print('Network error: $e');
-      throw Exception('Network error. Please check your internet connection.');
     } catch (e) {
-      print('GitHub OAuth initiation error: $e');
+      print('GitHub OAuth initiation error details: $e');
       throw Exception('Failed to initiate GitHub OAuth: $e');
     }
   }
@@ -96,26 +80,15 @@ class ApiService {
         Uri.parse('$_baseUrl/auth/github/callback'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'code': code}),
-      ).timeout(
-        const Duration(seconds: 15),
-        onTimeout: () => throw Exception('Connection timeout. Please try again.'),
       );
-      
+
       if (response.statusCode != 200) {
-        print('OAuth completion error: ${response.body}');
-        throw Exception('Authentication failed: ${response.statusCode}');
+        throw Exception('Failed to complete GitHub OAuth');
       }
-      
-      final data = _handleResponse(response);
-      if (data == null || data['token'] == null) {
-        throw Exception('Invalid authentication response: missing token');
-      }
+
+      final data = jsonDecode(response.body);
       await saveAuthToken(data['token']);
-    } on SocketException catch (e) {
-      print('Network error during OAuth completion: $e');
-      throw Exception('Network error. Please check your internet connection.');
     } catch (e) {
-      print('GitHub OAuth completion error: $e');
       throw Exception('Failed to complete GitHub OAuth: $e');
     }
   }

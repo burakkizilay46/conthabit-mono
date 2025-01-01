@@ -5,7 +5,8 @@ const { db } = require('../services/firebaseService');
 const authController = {
   initiateGitHubOAuth: async (req, res) => {
     try {
-      const authUrl = `https://github.com/login/oauth/authorize?client_id=${process.env.GITHUB_CLIENT_ID}&scope=user,repo`;
+      const redirectUri = 'conthabit://oauth/callback';
+      const authUrl = `https://github.com/login/oauth/authorize?client_id=${process.env.GITHUB_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=user,repo`;
       res.json({ authUrl });
     } catch (error) {
       console.error('GitHub OAuth initiation error:', error);
@@ -21,7 +22,8 @@ const authController = {
       const tokenResponse = await axios.post('https://github.com/login/oauth/access_token', {
         client_id: process.env.GITHUB_CLIENT_ID,
         client_secret: process.env.GITHUB_CLIENT_SECRET,
-        code
+        code,
+        redirect_uri: 'conthabit://oauth/callback'
       }, {
         headers: { Accept: 'application/json' }
       });

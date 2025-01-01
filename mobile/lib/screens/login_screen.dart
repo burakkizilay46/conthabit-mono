@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:conthabit/services/api_service.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:uni_links/uni_links.dart';
+import 'dart:async';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -13,6 +15,96 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final ApiService _apiService = ApiService();
   bool _isLoading = false;
+  bool _initialUriIsHandled = false;
+  StreamSubscription? _uriLinkSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    _handleIncomingLinks();
+    _handleInitialUri();
+  }
+
+  @override
+  void dispose() {
+    _uriLinkSubscription?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _handleInitialUri() async {
+    if (!_initialUriIsHandled) {
+      _initialUriIsHandled = true;
+      try {
+        final uri = await getInitialUri();
+        if (uri != null) {
+          debugPrint('Initial URI received $uri');
+          _handleIncomingLink(uri);
+        }
+      } catch (e) {
+        debugPrint('Failed to get initial URI: $e');
+      }
+    }
+  }
+
+  void _handleIncomingLinks() {
+    if (!mounted) return;
+    
+    _uriLinkSubscription = uriLinkStream.listen((Uri? uri) {
+      if (!mounted) return;
+      debugPrint('URI received $uri');
+      if (uri != null) {
+        _handleIncomingLink(uri);
+      }
+    }, onError: (err) {
+      debugPrint('Failed to handle incoming links: $err');
+    });
+  }
+
+  void _handleIncomingLink(Uri uri) async {
+    debugPrint('Handling incoming link: $uri');
+    if (!mounted) return;
+
+    if (uri.scheme == 'conthabit' && uri.host == 'oauth' && uri.path.startsWith('/callback')) {
+      final code = uri.queryParameters['code'];
+      debugPrint('Received OAuth code: $code');
+      if (code != null) {
+        setState(() {
+          _isLoading = true;
+        });
+        
+        try {
+          await _handleGitHubCallback(code);
+        } finally {
+          if (mounted) {
+            setState(() {
+              _isLoading = false;
+            });
+          }
+        }
+      }
+    }
+  }
+
+  Future<void> _handleGitHubCallback(String code) async {
+    try {
+      debugPrint('Processing GitHub callback');
+      await _apiService.completeGitHubOAuth(code);
+      if (mounted) {
+        debugPrint('OAuth completed successfully, navigating to dashboard');
+        Navigator.pushReplacementNamed(context, '/dashboard');
+      }
+    } catch (e) {
+      debugPrint('Error in GitHub callback: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to complete GitHub login: ${e.toString()}'),
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    }
+  }
 
   Future<void> _handleGitHubLogin(BuildContext context) async {
     setState(() {
@@ -20,18 +112,28 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      // Get the GitHub OAuth URL from the backend
       final String authUrl = await _apiService.initiateGitHubOAuth();
+      debugPrint('Received auth URL: $authUrl');
       
       if (!mounted) return;
 
-      // Launch the URL in the browser
       final uri = Uri.parse(authUrl);
       if (await canLaunchUrl(uri)) {
-        await launchUrl(
+        final result = await launchUrl(
           uri,
           mode: LaunchMode.externalApplication,
         );
+        
+        if (!result) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Could not launch GitHub login. Please try again.'),
+                duration: Duration(seconds: 4),
+              ),
+            );
+          }
+        }
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -43,6 +145,7 @@ class _LoginScreenState extends State<LoginScreen> {
         }
       }
     } catch (e) {
+      debugPrint('Error in GitHub login: $e');
       if (mounted) {
         String errorMessage = 'Login failed';
         if (e.toString().contains('Failed to initiate GitHub OAuth')) {
