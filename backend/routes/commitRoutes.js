@@ -1,9 +1,16 @@
 const express = require('express');
 const router = express.Router();
 const commitController = require('../controllers/commitController');
+const authMiddleware = require('../middleware/auth');
 
-// Commit check routes
-router.get('/check-commit/:userId', commitController.checkTodayCommit);
-router.post('/schedule-notification', commitController.scheduleNotification);
+// Get all commits
+router.get('/commits', commitController.getCommits);
+
+// Check if user has committed today
+router.get('/commits/today', commitController.hasCommittedToday);
+
+// Update user settings
+router.post('/settings/reminder', commitController.updateReminderTime);
+router.post('/settings/goal', commitController.updateCommitGoal);
 
 module.exports = router; 

@@ -3,6 +3,7 @@
 
 # Firebase
 firebase-credentials.json
+firebase-service-account.json
 
 # Dependencies
 node_modules/

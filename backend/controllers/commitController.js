@@ -1,60 +1,103 @@
 const axios = require('axios');
+const { db } = require('../services/firebaseService');
 
-class CommitController {
-  async checkTodayCommit(req, res) {
+const commitController = {
+  getCommits: async (req, res) => {
     try {
-      const { userId } = req.params;
-      // TODO: Get user's GitHub token from Firebase
-      const accessToken = 'user_token_from_firebase';
+      const userDoc = await db.collection('users').doc(req.user.userId.toString()).get();
+      const userData = userDoc.data();
+
+      const response = await axios.get('https://api.github.com/user/repos', {
+        headers: { Authorization: `Bearer ${userData.accessToken}` }
+      });
+
+      const repos = response.data;
+      const commits = [];
+
+      // Get commits from each repository
+      for (const repo of repos) {
+        const commitResponse = await axios.get(
+          `https://api.github.com/repos/${repo.full_name}/commits`,
+          {
+            headers: { Authorization: `Bearer ${userData.accessToken}` },
+            params: { author: userData.username }
+          }
+        );
+
+        commits.push(...commitResponse.data.map(commit => ({
+          id: commit.sha,
+          message: commit.commit.message,
+          date: commit.commit.author.date,
+          repository: repo.name,
+          url: commit.html_url
+        })));
+      }
+
+      res.json(commits);
+    } catch (error) {
+      console.error('Error fetching commits:', error);
+      res.status(500).json({ error: 'Failed to fetch commits' });
+    }
+  },
+
+  hasCommittedToday: async (req, res) => {
+    try {
+      const userDoc = await db.collection('users').doc(req.user.userId.toString()).get();
+      const userData = userDoc.data();
 
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
-      const response = await axios.get(`https://api.github.com/user/events`, {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      });
+      const response = await axios.get(
+        `https://api.github.com/search/commits`,
+        {
+          headers: {
+            Authorization: `Bearer ${userData.accessToken}`,
+            Accept: 'application/vnd.github.cloak-preview'
+          },
+          params: {
+            q: `author:${userData.username} committer-date:>${today.toISOString()}`
+          }
+        }
+      );
 
-      const todayCommits = response.data.filter(event => {
-        const eventDate = new Date(event.created_at);
-        eventDate.setHours(0, 0, 0, 0);
-        return event.type === 'PushEvent' && eventDate.getTime() === today.getTime();
-      });
-
-      const didCommit = todayCommits.length > 0;
-
-      // TODO: Store commit status in Firebase
-      
-      res.json({
-        userId,
-        date: today.toISOString(),
-        didCommit,
-        commitCount: todayCommits.length
-      });
+      const hasCommitted = response.data.total_count > 0;
+      res.json({ hasCommitted });
     } catch (error) {
-      console.error('Commit Check Error:', error);
-      res.status(500).json({ error: 'Failed to check commits' });
+      console.error('Error checking today\'s commits:', error);
+      res.status(500).json({ error: 'Failed to check today\'s commits' });
     }
-  }
+  },
 
-  async scheduleNotification(req, res) {
+  updateReminderTime: async (req, res) => {
     try {
-      const { userId, reminderTime } = req.body;
+      const { hour, minute } = req.body;
       
-      // TODO: Store reminder settings in Firebase
-      // TODO: Schedule notification using node-cron
-
-      res.json({
-        message: 'Notification scheduled successfully',
-        userId,
-        reminderTime
+      await db.collection('users').doc(req.user.userId.toString()).update({
+        reminderTime: { hour, minute }
       });
+
+      res.json({ message: 'Reminder time updated successfully' });
     } catch (error) {
-      console.error('Notification Scheduling Error:', error);
-      res.status(500).json({ error: 'Failed to schedule notification' });
+      console.error('Error updating reminder time:', error);
+      res.status(500).json({ error: 'Failed to update reminder time' });
+    }
+  },
+
+  updateCommitGoal: async (req, res) => {
+    try {
+      const { goal } = req.body;
+      
+      await db.collection('users').doc(req.user.userId.toString()).update({
+        commitGoal: goal
+      });
+
+      res.json({ message: 'Commit goal updated successfully' });
+    } catch (error) {
+      console.error('Error updating commit goal:', error);
+      res.status(500).json({ error: 'Failed to update commit goal' });
     }
   }
-}
+};
 
-module.exports = new CommitController(); 
+module.exports = commitController; 
