@@ -5,7 +5,7 @@ const { db } = require('../services/firebaseService');
 const authController = {
   initiateGitHubOAuth: async (req, res) => {
     try {
-      const redirectUri = 'conthabit://oauth/callback';
+      const redirectUri = 'https://conthabit-mono.onrender.com/auth/github/callback';
       const authUrl = `https://github.com/login/oauth/authorize?client_id=${process.env.GITHUB_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=user,repo`;
       res.json({ authUrl });
     } catch (error) {
@@ -14,16 +14,19 @@ const authController = {
     }
   },
 
-  completeGitHubOAuth: async (req, res) => {
+  handleGitHubCallback: async (req, res) => {
     try {
-      const { code } = req.body;
-      
+      const { code } = req.query;
+      if (!code) {
+        return res.status(400).json({ error: 'No code provided' });
+      }
+
       // Exchange code for access token
       const tokenResponse = await axios.post('https://github.com/login/oauth/access_token', {
         client_id: process.env.GITHUB_CLIENT_ID,
         client_secret: process.env.GITHUB_CLIENT_SECRET,
         code,
-        redirect_uri: 'conthabit://oauth/callback'
+        redirect_uri: 'https://conthabit-mono.onrender.com/auth/github/callback'
       }, {
         headers: { Accept: 'application/json' }
       });
@@ -54,10 +57,12 @@ const authController = {
         { expiresIn: '7d' }
       );
 
-      res.json({ token });
+      // Redirect back to the mobile app with the token
+      const appRedirectUrl = `conthabit://auth?token=${token}`;
+      res.redirect(appRedirectUrl);
     } catch (error) {
-      console.error('GitHub OAuth completion error:', error);
-      res.status(500).json({ error: 'Failed to complete GitHub OAuth' });
+      console.error('GitHub OAuth callback error:', error);
+      res.redirect('conthabit://auth?error=Failed to complete GitHub OAuth');
     }
   },
 

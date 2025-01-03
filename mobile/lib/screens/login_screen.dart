@@ -64,21 +64,41 @@ class _LoginScreenState extends State<LoginScreen> {
     debugPrint('Handling incoming link: $uri');
     if (!mounted) return;
 
-    if (uri.scheme == 'conthabit' && uri.host == 'oauth' && uri.path.startsWith('/callback')) {
-      final code = uri.queryParameters['code'];
-      debugPrint('Received OAuth code: $code');
-      if (code != null) {
-        setState(() {
-          _isLoading = true;
-        });
-        
+    if (uri.toString().startsWith('https://conthabit-mono.onrender.com/auth/github/callback')) {
+      // This is handled by the backend now
+      debugPrint('Received GitHub callback, waiting for auth redirect');
+    } else if (uri.scheme == 'conthabit' && uri.host == 'auth') {
+      final token = uri.queryParameters['token'];
+      final error = uri.queryParameters['error'];
+      
+      if (error != null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Login failed: $error'),
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+        return;
+      }
+
+      if (token != null) {
         try {
-          await _handleGitHubCallback(code);
-        } finally {
+          await _apiService.saveAuthToken(token);
           if (mounted) {
-            setState(() {
-              _isLoading = false;
-            });
+            debugPrint('OAuth completed successfully, navigating to dashboard');
+            Navigator.pushReplacementNamed(context, '/dashboard');
+          }
+        } catch (e) {
+          debugPrint('Error saving auth token: $e');
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Failed to complete login: ${e.toString()}'),
+                duration: const Duration(seconds: 4),
+              ),
+            );
           }
         }
       }

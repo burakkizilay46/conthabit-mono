@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:conthabit/models/commit_model.dart';
@@ -7,17 +6,10 @@ import 'package:flutter/material.dart';
 
 class ApiService {
   static String get _baseUrl {
-    if (Platform.isAndroid) {
-      // Android emulator needs 10.0.2.2 to access host machine's localhost
-      return 'http://10.0.2.2:3000';
-    } else if (Platform.isIOS) {
-      // iOS simulator can use localhost
-      return 'http://127.0.0.1:3000';
-    } else {
-      // For physical devices, you should use your actual backend URL
-      return 'http://127.0.0.1:3000';
-    }
+    // For all platforms, use the deployed URL
+    return 'https://conthabit-mono.onrender.com';
   }
+
   static const _storage = FlutterSecureStorage();
 
   // Authentication
@@ -177,4 +169,4 @@ class ApiService {
       throw Exception('Failed to update commit goal: $e');
     }
   }
-} 
+}
