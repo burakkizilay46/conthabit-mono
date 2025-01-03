@@ -4,7 +4,6 @@ const authController = require('../controllers/authController');
 
 // GitHub OAuth routes
 router.get('/github/init', authController.initiateGitHubOAuth);
-router.post('/github/callback', authController.completeGitHubOAuth);
 router.get('/github/callback', authController.handleGitHubCallback);
 
 // User management routes
