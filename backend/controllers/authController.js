@@ -127,6 +127,25 @@ const authController = {
     } catch (error) {
       res.status(500).json({ error: 'Failed to get user data' });
     }
+  },
+
+  getUserProfile: async (req, res) => {
+    try {
+      const userDoc = await db.collection('users').doc(req.user.userId.toString()).get();
+      const userData = userDoc.data();
+
+      const response = await axios.get('https://api.github.com/user', {
+        headers: { 
+          Authorization: `Bearer ${userData.accessToken}`,
+          Accept: 'application/vnd.github.v3+json'
+        }
+      });
+
+      res.json(response.data);
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+      res.status(500).json({ error: 'Failed to fetch user profile' });
+    }
   }
 };
 

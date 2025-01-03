@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:conthabit/models/commit_model.dart';
+import 'package:conthabit/models/user_model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -30,7 +31,7 @@ class ApiService {
       if (storedToken != null) {
         return storedToken;
       }
-      
+
       return null;
     } catch (e) {
       debugPrint('Error getting auth token: $e');
@@ -90,9 +91,12 @@ class ApiService {
       }
     }
 
-    debugPrint('Error response: ${response.statusCode}, body: ${response.body}');
-    if (response.headers['content-type']?.contains('application/json') == true) {
-      final errorMessage = jsonDecode(response.body)['message'] ?? 'Unknown error';
+    debugPrint(
+        'Error response: ${response.statusCode}, body: ${response.body}');
+    if (response.headers['content-type']?.contains('application/json') ==
+        true) {
+      final errorMessage =
+          jsonDecode(response.body)['message'] ?? 'Unknown error';
       throw Exception('Error: $errorMessage');
     }
 
@@ -114,33 +118,35 @@ class ApiService {
   Future<String> initiateGitHubOAuth() async {
     try {
       debugPrint('Initiating GitHub OAuth');
-      
+
       final mobileRedirect = Uri.encodeComponent(_mobileRedirectUrl);
-      final backendCallback = Uri.encodeComponent('$_baseUrl/auth/github/callback');
-      
+      final backendCallback =
+          Uri.encodeComponent('$_baseUrl/auth/github/callback');
+
       final response = await http
-          .get(Uri.parse('$_baseUrl/auth/github/init?mobile_redirect=$mobileRedirect&backend_callback=$backendCallback'))
+          .get(Uri.parse(
+              '$_baseUrl/auth/github/init?mobile_redirect=$mobileRedirect&backend_callback=$backendCallback'))
           .timeout(const Duration(seconds: 10));
-      
+
       debugPrint('OAuth init response status: ${response.statusCode}');
       debugPrint('OAuth init response body: ${response.body}');
-      
+
       final data = _handleResponse(response);
-      
+
       if (!data.containsKey('authUrl')) {
         debugPrint('Response data: $data');
         throw Exception('Invalid response format: Missing authUrl');
       }
-      
+
       final authUrl = data['authUrl'] as String;
       debugPrint('Received authUrl: $authUrl');
-      
+
       // Validate the URL
       final uri = Uri.parse(authUrl);
       if (!uri.host.contains('github.com')) {
         throw Exception('Invalid GitHub OAuth URL');
       }
-      
+
       return authUrl;
     } catch (e) {
       debugPrint('GitHub OAuth initiation error: $e');
@@ -151,24 +157,26 @@ class ApiService {
   Future<void> handleAuthCallback(String code) async {
     try {
       debugPrint('Exchanging code for token');
-      
-      final response = await http.post(
-        Uri.parse('$_baseUrl/auth/github/callback'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'code': code}),
-      ).timeout(const Duration(seconds: 10));
-      
+
+      final response = await http
+          .post(
+            Uri.parse('$_baseUrl/auth/github/callback'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'code': code}),
+          )
+          .timeout(const Duration(seconds: 10));
+
       debugPrint('Token exchange response status: ${response.statusCode}');
-      
+
       final data = _handleResponse(response);
       if (!data.containsKey('token')) {
         debugPrint('Response data: $data');
         throw Exception('Invalid response format: Missing token');
       }
-      
+
       final token = data['token'] as String;
       debugPrint('Received token, saving...');
-      
+
       // Save the token to secure storage
       await saveAuthToken(token);
       debugPrint('Auth token saved successfully');
@@ -196,23 +204,24 @@ class ApiService {
       final response = await http
           .get(Uri.parse('$_baseUrl/api/commits'), headers: headers)
           .timeout(const Duration(seconds: 30));
-      
+
       if (response.statusCode == 204) {
         return [];
       }
-      
+
       final data = _handleResponse(response);
       if (data == null) return [];
-      
+
       if (data is! List) {
         debugPrint('Unexpected response format: ${response.body}');
         return [];
       }
-      
+
       return data.map((json) => CommitModel.fromJson(json)).toList();
     } on TimeoutException {
       debugPrint('Request timed out while fetching commits');
-      throw Exception('Connection timed out. Please check your internet connection and try again.');
+      throw Exception(
+          'Connection timed out. Please check your internet connection and try again.');
     } catch (e) {
       debugPrint('Get commits error: $e');
       throw Exception('Failed to load commits: $e');
@@ -225,16 +234,17 @@ class ApiService {
       final response = await http
           .get(Uri.parse('$_baseUrl/api/commits/today'), headers: headers)
           .timeout(const Duration(seconds: 30));
-      
+
       if (response.statusCode == 204) {
         return false;
       }
-      
+
       final data = _handleResponse(response);
       return data?['hasCommitted'] as bool? ?? false;
     } on TimeoutException {
       debugPrint('Request timed out while checking today\'s commits');
-      throw Exception('Connection timed out. Please check your internet connection and try again.');
+      throw Exception(
+          'Connection timed out. Please check your internet connection and try again.');
     } catch (e) {
       debugPrint('Check today\'s commit error: $e');
       throw Exception('Failed to check today\'s commit status: $e');
@@ -273,6 +283,24 @@ class ApiService {
     } catch (e) {
       debugPrint('Update commit goal error: $e');
       throw Exception('Failed to update commit goal: $e');
+    }
+  }
+
+  Future<UserModel> getUserProfile() async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http
+          .get(Uri.parse('$_baseUrl/auth/profile'), headers: headers)
+          .timeout(const Duration(seconds: 10));
+
+      final data = _handleResponse(response);
+      return UserModel.fromJson(data);
+    } on TimeoutException {
+      debugPrint('Request timed out while fetching user profile');
+      throw Exception('Connection timed out. Please check your internet connection and try again.');
+    } catch (e) {
+      debugPrint('Error fetching user profile: $e');
+      throw Exception('Failed to fetch user profile');
     }
   }
 }

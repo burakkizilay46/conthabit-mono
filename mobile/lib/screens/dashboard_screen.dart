@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:conthabit/models/commit_model.dart';
+import 'package:conthabit/models/user_model.dart';
 import 'package:conthabit/services/api_service.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -15,6 +16,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   List<CommitModel>? _commits;
   bool? _hasCommittedToday;
   bool _isLoading = true;
+  UserModel? _userProfile;
 
   @override
   void initState() {
@@ -26,6 +28,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
     debugPrint('Starting to load dashboard data...');
     setState(() => _isLoading = true);
     try {
+      debugPrint('Fetching user profile...');
+      final userProfile = await _apiService.getUserProfile();
+      
       debugPrint('Fetching commits...');
       final commits = await _apiService.getCommits();
       debugPrint('Commits fetched: ${commits.length}');
@@ -35,6 +40,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       debugPrint('Has committed today: $hasCommittedToday');
       
       setState(() {
+        _userProfile = userProfile;
         _commits = commits;
         _hasCommittedToday = hasCommittedToday;
         _isLoading = false;
@@ -58,15 +64,37 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Dashboard'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings),
-            onPressed: () {
-              Navigator.pushNamed(context, '/settings');
-            },
-          ),
-        ],
+        title: Row(
+          children: [
+            if (_userProfile != null) ...[
+              CircleAvatar(
+                backgroundImage: NetworkImage(_userProfile!.avatarUrl),
+                radius: 20.r,
+              ),
+              SizedBox(width: 12.w),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _userProfile!.name,
+                    style: TextStyle(
+                      fontSize: 16.sp,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    '@${_userProfile!.username}',
+                    style: TextStyle(
+                      fontSize: 12.sp,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
       ),
       body: SafeArea(
         child: _isLoading
@@ -110,34 +138,79 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Card(
       child: Padding(
         padding: EdgeInsets.all(16.w),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Row(
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  '${(progress * 100).toInt()}%',
-                  style: TextStyle(
-                    fontSize: 32.sp,
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).colorScheme.primary,
+            SizedBox(
+              width: 120.w,
+              height: 120.w,
+              child: Stack(
+                children: [
+                  Center(
+                    child: SizedBox(
+                      width: 100.w,
+                      height: 100.w,
+                      child: CircularProgressIndicator(
+                        value: progress,
+                        strokeWidth: 8.w,
+                        backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+                      ),
+                    ),
                   ),
-                ),
-                Text(
-                  '$totalCommits/$targetCommits commits',
-                  style: TextStyle(
-                    fontSize: 16.sp,
-                    color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
+                  Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          '${(progress * 100).toInt()}%',
+                          style: TextStyle(
+                            fontSize: 24.sp,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                        ),
+                        Text(
+                          'Complete',
+                          style: TextStyle(
+                            fontSize: 12.sp,
+                            color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-            SizedBox(height: 16.h),
-            LinearProgressIndicator(
-              value: progress,
-              minHeight: 8.h,
-              borderRadius: BorderRadius.circular(4.r),
+            SizedBox(width: 16.w),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Total Commits',
+                    style: TextStyle(
+                      fontSize: 16.sp,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  SizedBox(height: 8.h),
+                  Text(
+                    '$totalCommits',
+                    style: TextStyle(
+                      fontSize: 32.sp,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
+                  Text(
+                    'out of $targetCommits goal',
+                    style: TextStyle(
+                      fontSize: 14.sp,
+                      color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
