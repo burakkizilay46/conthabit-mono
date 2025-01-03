@@ -5,6 +5,7 @@ const { db } = require('../services/firebaseService');
 const authController = {
   initiateGitHubOAuth: async (req, res) => {
     try {
+      console.log('Received mobile_redirect:', req.query.mobile_redirect);
       const mobileRedirect = req.query.mobile_redirect;
       const redirectUri = 'https://conthabit-mono.onrender.com/auth/github/callback';
       
@@ -13,9 +14,13 @@ const authController = {
         // You might want to store this in a temporary storage or session
         global.mobileRedirectMap = global.mobileRedirectMap || new Map();
         const state = Math.random().toString(36).substring(7);
-        global.mobileRedirectMap.set(state, mobileRedirect);
+        global.mobileRedirectMap.set(state, decodeURIComponent(mobileRedirect));
+        console.log('Stored mobile redirect:', mobileRedirect, 'with state:', state);
         
-        const authUrl = `https://github.com/login/oauth/authorize?client_id=${process.env.GITHUB_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=user,repo&state=${state}`;
+        // Add mobile_redirect to the callback URL as a query parameter
+        const callbackUri = `${redirectUri}?mobile_redirect=${encodeURIComponent(mobileRedirect)}`;
+        const authUrl = `https://github.com/login/oauth/authorize?client_id=${process.env.GITHUB_CLIENT_ID}&redirect_uri=${encodeURIComponent(callbackUri)}&scope=user,repo&state=${state}`;
+        console.log('Generated auth URL:', authUrl);
         res.json({ authUrl });
       } else {
         const authUrl = `https://github.com/login/oauth/authorize?client_id=${process.env.GITHUB_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=user,repo`;
@@ -29,7 +34,8 @@ const authController = {
 
   handleGitHubCallback: async (req, res) => {
     try {
-      const { code, state } = req.query;
+      console.log('Received callback with query params:', req.query);
+      const { code, state, mobile_redirect } = req.query;
       if (!code) {
         return res.status(400).json({ error: 'No code provided' });
       }
@@ -39,12 +45,15 @@ const authController = {
         client_id: process.env.GITHUB_CLIENT_ID,
         client_secret: process.env.GITHUB_CLIENT_SECRET,
         code,
-        redirect_uri: 'https://conthabit-mono.onrender.com/auth/github/callback'
+        redirect_uri: mobile_redirect 
+          ? `${redirectUri}?mobile_redirect=${encodeURIComponent(mobile_redirect)}`
+          : redirectUri
       }, {
         headers: { Accept: 'application/json' }
       });
 
       const accessToken = tokenResponse.data.access_token;
+      console.log('Received access token from GitHub');
 
       // Get user data from GitHub
       const userResponse = await axios.get('https://api.github.com/user', {
@@ -52,6 +61,7 @@ const authController = {
       });
 
       const userData = userResponse.data;
+      console.log('Received user data from GitHub for:', userData.login);
 
       // Store user in Firebase
       await db.collection('users').doc(userData.id.toString()).set({
@@ -62,6 +72,7 @@ const authController = {
         accessToken,
         createdAt: new Date()
       });
+      console.log('Stored user data in Firebase');
 
       // Generate JWT
       const token = jwt.sign(
@@ -73,18 +84,23 @@ const authController = {
       // Get the stored mobile redirect URI if it exists
       let redirectUrl;
       if (state && global.mobileRedirectMap) {
-        const mobileRedirect = global.mobileRedirectMap.get(state);
-        if (mobileRedirect) {
-          redirectUrl = `${mobileRedirect}?token=${token}`;
+        const storedMobileRedirect = global.mobileRedirectMap.get(state);
+        console.log('Retrieved stored mobile redirect:', storedMobileRedirect);
+        if (storedMobileRedirect) {
+          redirectUrl = `${storedMobileRedirect}?token=${token}`;
           global.mobileRedirectMap.delete(state); // Clean up
+          console.log('Using stored mobile redirect URL:', redirectUrl);
         } else {
           redirectUrl = `conthabit://auth?token=${token}`;
+          console.log('No stored mobile redirect found, using default:', redirectUrl);
         }
       } else {
         redirectUrl = `conthabit://auth?token=${token}`;
+        console.log('No state or mobileRedirectMap, using default:', redirectUrl);
       }
 
       // Redirect back to the mobile app with the token
+      console.log('Redirecting to:', redirectUrl);
       res.redirect(redirectUrl);
     } catch (error) {
       console.error('GitHub OAuth callback error:', error);

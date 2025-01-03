@@ -76,6 +76,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
   void _handleIncomingLink(Uri uri) async {
     debugPrint('Handling incoming link: $uri');
+    debugPrint('URI scheme: ${uri.scheme}, host: ${uri.host}, path: ${uri.path}');
+    debugPrint('Query parameters: ${uri.queryParameters}');
+    
     if (!mounted) return;
 
     // Handle both HTTPS and custom scheme callbacks
@@ -85,8 +88,10 @@ class _LoginScreenState extends State<LoginScreen> {
       debugPrint('Received OAuth callback URL');
       final code = uri.queryParameters['code'];
       final error = uri.queryParameters['error'];
+      final token = uri.queryParameters['token'];
       
       if (error != null) {
+        debugPrint('Received error in callback: $error');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -98,7 +103,40 @@ class _LoginScreenState extends State<LoginScreen> {
         return;
       }
 
+      if (token != null) {
+        debugPrint('Received token directly, proceeding to save');
+        setState(() {
+          _isLoading = true;
+        });
+        
+        try {
+          await _apiService.saveAuthToken(token);
+          if (mounted) {
+            debugPrint('Token saved successfully, navigating to dashboard');
+            Navigator.pushReplacementNamed(context, '/dashboard');
+          }
+        } catch (e) {
+          debugPrint('Error saving token: $e');
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Failed to complete login: ${e.toString()}'),
+                duration: const Duration(seconds: 4),
+              ),
+            );
+          }
+        } finally {
+          if (mounted) {
+            setState(() {
+              _isLoading = false;
+            });
+          }
+        }
+        return;
+      }
+
       if (code != null) {
+        debugPrint('Received code, exchanging for token');
         setState(() {
           _isLoading = true;
         });
@@ -127,11 +165,11 @@ class _LoginScreenState extends State<LoginScreen> {
           }
         }
       } else {
-        debugPrint('No code found in callback URL');
+        debugPrint('No code or token found in callback URL');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Invalid callback URL: No authorization code found'),
+              content: Text('Invalid callback URL: No authorization data found'),
               duration: Duration(seconds: 4),
             ),
           );
