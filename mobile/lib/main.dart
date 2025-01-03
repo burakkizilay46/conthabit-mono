@@ -8,16 +8,15 @@ import 'package:conthabit/screens/dashboard_screen.dart';
 import 'package:conthabit/screens/settings_screen.dart';
 import 'package:conthabit/services/api_service.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  
+
   // Initialize API service and check authentication state
   final apiService = ApiService();
   final hasToken = await apiService.getAuthToken() != null;

@@ -115,8 +115,10 @@ class ApiService {
       debugPrint('Initiating GitHub OAuth');
       
       final mobileRedirect = Uri.encodeComponent(_mobileRedirectUrl);
+      final backendCallback = Uri.encodeComponent('$_baseUrl/auth/github/callback');
+      
       final response = await http
-          .get(Uri.parse('$_baseUrl/auth/github/init?mobile_redirect=$mobileRedirect'))
+          .get(Uri.parse('$_baseUrl/auth/github/init?mobile_redirect=$mobileRedirect&backend_callback=$backendCallback'))
           .timeout(const Duration(seconds: 10));
       
       debugPrint('OAuth init response status: ${response.statusCode}');

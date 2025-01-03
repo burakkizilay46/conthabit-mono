@@ -6,8 +6,10 @@ const authController = {
   initiateGitHubOAuth: async (req, res) => {
     try {
       console.log('Received mobile_redirect:', req.query.mobile_redirect);
+      console.log('Received backend_callback:', req.query.backend_callback);
+      
       const mobileRedirect = req.query.mobile_redirect;
-      const redirectUri = 'https://conthabit-c3f5a.firebaseapp.com/__/auth/handler';
+      const backendCallback = req.query.backend_callback || 'https://conthabit-mono.onrender.com/auth/github/callback';
       
       // Store the mobile redirect URI in the session or temporary storage
       if (mobileRedirect) {
@@ -17,13 +19,11 @@ const authController = {
         global.mobileRedirectMap.set(state, decodeURIComponent(mobileRedirect));
         console.log('Stored mobile redirect:', mobileRedirect, 'with state:', state);
         
-        // Add mobile_redirect to the callback URL as a query parameter
-        const callbackUri = `${redirectUri}?mobile_redirect=${encodeURIComponent(mobileRedirect)}`;
-        const authUrl = `https://github.com/login/oauth/authorize?client_id=${process.env.GITHUB_CLIENT_ID}&redirect_uri=${encodeURIComponent(callbackUri)}&scope=user,repo&state=${state}`;
+        const authUrl = `https://github.com/login/oauth/authorize?client_id=${process.env.GITHUB_CLIENT_ID}&redirect_uri=${encodeURIComponent(backendCallback)}&scope=user,repo&state=${state}`;
         console.log('Generated auth URL:', authUrl);
         res.json({ authUrl });
       } else {
-        const authUrl = `https://github.com/login/oauth/authorize?client_id=${process.env.GITHUB_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=user,repo`;
+        const authUrl = `https://github.com/login/oauth/authorize?client_id=${process.env.GITHUB_CLIENT_ID}&redirect_uri=${encodeURIComponent(backendCallback)}&scope=user,repo`;
         res.json({ authUrl });
       }
     } catch (error) {
@@ -35,7 +35,8 @@ const authController = {
   handleGitHubCallback: async (req, res) => {
     try {
       console.log('Received callback with query params:', req.query);
-      const { code, state, mobile_redirect } = req.query;
+      const { code, state } = req.query;
+      
       if (!code) {
         return res.status(400).json({ error: 'No code provided' });
       }
@@ -45,9 +46,6 @@ const authController = {
         client_id: process.env.GITHUB_CLIENT_ID,
         client_secret: process.env.GITHUB_CLIENT_SECRET,
         code,
-        redirect_uri: mobile_redirect 
-          ? `${redirectUri}?mobile_redirect=${encodeURIComponent(mobile_redirect)}`
-          : redirectUri
       }, {
         headers: { Accept: 'application/json' }
       });
