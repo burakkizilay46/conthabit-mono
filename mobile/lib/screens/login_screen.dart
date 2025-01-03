@@ -4,6 +4,8 @@ import 'package:conthabit/services/api_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:uni_links/uni_links.dart';
 import 'dart:async';
+import 'package:url_launcher/url_launcher_string.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -17,12 +19,17 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
   bool _initialUriIsHandled = false;
   StreamSubscription? _uriLinkSubscription;
+  static const String _loginAttemptKey = 'login_attempt_timestamp';
 
   @override
   void initState() {
     super.initState();
-    _handleIncomingLinks();
     _handleInitialUri();
+    _handleIncomingLinks();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkInitialUri();
+      _checkPendingLogin();
+    });
   }
 
   @override
@@ -48,27 +55,35 @@ class _LoginScreenState extends State<LoginScreen> {
 
   void _handleIncomingLinks() {
     if (!mounted) return;
-    
-    _uriLinkSubscription = uriLinkStream.listen((Uri? uri) {
-      if (!mounted) return;
-      debugPrint('URI received $uri');
-      if (uri != null) {
-        _handleIncomingLink(uri);
-      }
-    }, onError: (err) {
-      debugPrint('Failed to handle incoming links: $err');
-    });
+
+    _uriLinkSubscription?.cancel();
+    _uriLinkSubscription = uriLinkStream.listen(
+      (Uri? uri) {
+        if (!mounted) return;
+        debugPrint('URI received in stream: $uri');
+        if (uri != null) {
+          _handleIncomingLink(uri);
+        }
+      },
+      onError: (err) {
+        debugPrint('URI stream error: $err');
+        if (mounted) {
+          Future.delayed(const Duration(seconds: 1), _handleIncomingLinks);
+        }
+      },
+    );
   }
 
   void _handleIncomingLink(Uri uri) async {
     debugPrint('Handling incoming link: $uri');
     if (!mounted) return;
 
-    if (uri.toString().startsWith('https://conthabit-mono.onrender.com/auth/github/callback')) {
-      // This is handled by the backend now
-      debugPrint('Received GitHub callback, waiting for auth redirect');
-    } else if (uri.scheme == 'conthabit' && uri.host == 'auth') {
-      final token = uri.queryParameters['token'];
+    // Handle both HTTPS and custom scheme callbacks
+    if ((uri.scheme == 'https' && uri.host == 'conthabit-mono.onrender.com' && uri.path.contains('/auth/github/callback')) ||
+        (uri.scheme == 'conthabit' && (uri.host == 'auth' || uri.pathSegments.contains('callback')))) {
+      
+      debugPrint('Received OAuth callback URL');
+      final code = uri.queryParameters['code'];
       final error = uri.queryParameters['error'];
       
       if (error != null) {
@@ -83,15 +98,19 @@ class _LoginScreenState extends State<LoginScreen> {
         return;
       }
 
-      if (token != null) {
+      if (code != null) {
+        setState(() {
+          _isLoading = true;
+        });
+        
         try {
-          await _apiService.saveAuthToken(token);
+          await _apiService.handleAuthCallback(code);
           if (mounted) {
             debugPrint('OAuth completed successfully, navigating to dashboard');
             Navigator.pushReplacementNamed(context, '/dashboard');
           }
         } catch (e) {
-          debugPrint('Error saving auth token: $e');
+          debugPrint('Error handling auth callback: $e');
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
@@ -100,29 +119,36 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             );
           }
+        } finally {
+          if (mounted) {
+            setState(() {
+              _isLoading = false;
+            });
+          }
+        }
+      } else {
+        debugPrint('No code found in callback URL');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Invalid callback URL: No authorization code found'),
+              duration: Duration(seconds: 4),
+            ),
+          );
         }
       }
     }
   }
 
-  Future<void> _handleGitHubCallback(String code) async {
+  Future<void> _checkInitialUri() async {
     try {
-      debugPrint('Processing GitHub callback');
-      await _apiService.completeGitHubOAuth(code);
-      if (mounted) {
-        debugPrint('OAuth completed successfully, navigating to dashboard');
-        Navigator.pushReplacementNamed(context, '/dashboard');
+      final uri = await getInitialUri();
+      if (uri != null) {
+        debugPrint('Initial URI on launch: $uri');
+        _handleIncomingLink(uri);
       }
     } catch (e) {
-      debugPrint('Error in GitHub callback: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to complete GitHub login: ${e.toString()}'),
-            duration: const Duration(seconds: 4),
-          ),
-        );
-      }
+      debugPrint('Error handling initial URI: $e');
     }
   }
 
@@ -138,10 +164,14 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
 
       final uri = Uri.parse(authUrl);
-      if (await canLaunchUrl(uri)) {
+      
+      // Store login state before launching URL
+      await _persistLoginAttempt();
+      
+      try {
         final result = await launchUrl(
           uri,
-          mode: LaunchMode.externalApplication,
+          mode: LaunchMode.platformDefault,
         );
         
         if (!result) {
@@ -152,9 +182,13 @@ class _LoginScreenState extends State<LoginScreen> {
                 duration: Duration(seconds: 4),
               ),
             );
+            // Clear login attempt if URL launch fails
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.remove(_loginAttemptKey);
           }
         }
-      } else {
+      } catch (urlError) {
+        debugPrint('Error launching URL: $urlError');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -162,6 +196,9 @@ class _LoginScreenState extends State<LoginScreen> {
               duration: Duration(seconds: 4),
             ),
           );
+          // Clear login attempt if URL launch throws
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.remove(_loginAttemptKey);
         }
       }
     } catch (e) {
@@ -187,6 +224,24 @@ class _LoginScreenState extends State<LoginScreen> {
           _isLoading = false;
         });
       }
+    }
+  }
+
+  Future<void> _persistLoginAttempt() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_loginAttemptKey, DateTime.now().millisecondsSinceEpoch);
+    debugPrint('Login attempt persisted');
+  }
+
+  Future<void> _checkPendingLogin() async {
+    final prefs = await SharedPreferences.getInstance();
+    final timestamp = prefs.getInt(_loginAttemptKey);
+    if (timestamp != null) {
+      // Clear the timestamp immediately
+      await prefs.remove(_loginAttemptKey);
+      
+      // If there was a pending login and the app was restarted
+      debugPrint('Found pending login from previous session');
     }
   }
 
