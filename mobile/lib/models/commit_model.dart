@@ -13,10 +13,12 @@ class CommitModel {
 
   factory CommitModel.fromJson(Map<String, dynamic> json) {
     return CommitModel(
-      id: json['id'] as String,
-      message: json['message'] as String,
-      timestamp: DateTime.parse(json['timestamp'] as String),
-      repository: json['repository'] as String,
+      id: json['id']?.toString() ?? '',
+      message: json['message']?.toString() ?? 'No message',
+      timestamp: json['date'] != null 
+          ? DateTime.parse(json['date'].toString())
+          : DateTime.now(),
+      repository: json['repository']?.toString() ?? 'Unknown repository',
     );
   }
 

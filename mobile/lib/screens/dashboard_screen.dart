@@ -23,21 +23,32 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> _loadData() async {
+    debugPrint('Starting to load dashboard data...');
     setState(() => _isLoading = true);
     try {
+      debugPrint('Fetching commits...');
       final commits = await _apiService.getCommits();
+      debugPrint('Commits fetched: ${commits.length}');
+      
+      debugPrint('Checking today\'s commit status...');
       final hasCommittedToday = await _apiService.hasCommittedToday();
+      debugPrint('Has committed today: $hasCommittedToday');
       
       setState(() {
         _commits = commits;
         _hasCommittedToday = hasCommittedToday;
         _isLoading = false;
       });
+      debugPrint('Dashboard data loaded successfully');
     } catch (e) {
+      debugPrint('Error loading dashboard data: $e');
       setState(() => _isLoading = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading data: ${e.toString()}')),
+          SnackBar(
+            content: Text('Error loading data: ${e.toString()}'),
+            duration: const Duration(seconds: 5),
+          ),
         );
       }
     }

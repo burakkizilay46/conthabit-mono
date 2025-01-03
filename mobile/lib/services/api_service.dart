@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:conthabit/models/commit_model.dart';
@@ -194,9 +195,24 @@ class ApiService {
       final headers = await _getHeaders();
       final response = await http
           .get(Uri.parse('$_baseUrl/api/commits'), headers: headers)
-          .timeout(const Duration(seconds: 10));
+          .timeout(const Duration(seconds: 30));
+      
+      if (response.statusCode == 204) {
+        return [];
+      }
+      
       final data = _handleResponse(response);
-      return (data as List).map((json) => CommitModel.fromJson(json)).toList();
+      if (data == null) return [];
+      
+      if (data is! List) {
+        debugPrint('Unexpected response format: ${response.body}');
+        return [];
+      }
+      
+      return data.map((json) => CommitModel.fromJson(json)).toList();
+    } on TimeoutException {
+      debugPrint('Request timed out while fetching commits');
+      throw Exception('Connection timed out. Please check your internet connection and try again.');
     } catch (e) {
       debugPrint('Get commits error: $e');
       throw Exception('Failed to load commits: $e');
@@ -208,9 +224,17 @@ class ApiService {
       final headers = await _getHeaders();
       final response = await http
           .get(Uri.parse('$_baseUrl/api/commits/today'), headers: headers)
-          .timeout(const Duration(seconds: 10));
+          .timeout(const Duration(seconds: 30));
+      
+      if (response.statusCode == 204) {
+        return false;
+      }
+      
       final data = _handleResponse(response);
-      return data['hasCommitted'] as bool;
+      return data?['hasCommitted'] as bool? ?? false;
+    } on TimeoutException {
+      debugPrint('Request timed out while checking today\'s commits');
+      throw Exception('Connection timed out. Please check your internet connection and try again.');
     } catch (e) {
       debugPrint('Check today\'s commit error: $e');
       throw Exception('Failed to check today\'s commit status: $e');

@@ -1,6 +1,9 @@
 const axios = require('axios');
 const { db } = require('../services/firebaseService');
 
+// Start date for commit counting (January 1st, 2025)
+const COMMIT_COUNT_START_DATE = '2025-01-01T00:00:00Z';
+
 const commitController = {
   getCommits: async (req, res) => {
     try {
@@ -20,7 +23,10 @@ const commitController = {
           `https://api.github.com/repos/${repo.full_name}/commits`,
           {
             headers: { Authorization: `Bearer ${userData.accessToken}` },
-            params: { author: userData.username }
+            params: { 
+              author: userData.username,
+              since: COMMIT_COUNT_START_DATE  // Only get commits after start date
+            }
           }
         );
 
