@@ -7,7 +7,7 @@ const authController = {
     try {
       console.log('Received mobile_redirect:', req.query.mobile_redirect);
       const mobileRedirect = req.query.mobile_redirect;
-      const redirectUri = 'https://conthabit-mono.onrender.com/auth/github/callback';
+      const redirectUri = 'https://conthabit-c3f5a.firebaseapp.com/__/auth/handler';
       
       // Store the mobile redirect URI in the session or temporary storage
       if (mobileRedirect) {
