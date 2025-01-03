@@ -50,20 +50,10 @@
 		<dict>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>https</string>
-			</array>
-			<key>CFBundleURLName</key>
-			<string>com.conthabit.app</string>
-			<key>CFBundleURLHost</key>
-			<string>conthabit-mono.onrender.com</string>
-		</dict>
-		<dict>
-			<key>CFBundleURLSchemes</key>
-			<array>
 				<string>conthabit</string>
 			</array>
 			<key>CFBundleURLName</key>
-			<string>com.conthabit.app.auth</string>
+			<string>com.conthabit.app</string>
 		</dict>
 	</array>
 </dict>

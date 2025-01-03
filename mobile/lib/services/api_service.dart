@@ -4,31 +4,66 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:conthabit/models/commit_model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class ApiService {
   static String get _baseUrl {
     return 'https://conthabit-mono.onrender.com';
   }
 
+  static String get _mobileRedirectUrl {
+    if (kDebugMode) {
+      return 'conthabit://oauth/callback';
+    }
+    return 'com.conthabit.app://oauth/callback';
+  }
+
   static const _storage = FlutterSecureStorage();
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
   // Authentication
   Future<String?> getAuthToken() async {
-    final token = await _storage.read(key: 'auth_token');
-    return token;
+    try {
+      // Try to get stored token first
+      final storedToken = await _storage.read(key: 'auth_token');
+      if (storedToken != null) {
+        return storedToken;
+      }
+      
+      return null;
+    } catch (e) {
+      debugPrint('Error getting auth token: $e');
+      return null;
+    }
   }
 
   Future<void> saveAuthToken(String token) async {
-    await _storage.write(key: 'auth_token', value: token);
+    try {
+      // Only save to secure storage
+      await _storage.write(key: 'auth_token', value: token);
+      debugPrint('Token saved to secure storage');
+    } catch (e) {
+      debugPrint('Error saving auth token: $e');
+      throw Exception('Failed to save authentication token');
+    }
   }
 
   Future<void> logout() async {
-    await _storage.delete(key: 'auth_token');
+    try {
+      await _storage.delete(key: 'auth_token');
+      await _auth.signOut();
+    } catch (e) {
+      debugPrint('Error during logout: $e');
+      // Ensure storage is cleared even if Firebase logout fails
+      await _storage.delete(key: 'auth_token');
+    }
   }
 
   Future<String> _getRequiredAuthToken() async {
     final token = await getAuthToken();
-    if (token == null) throw Exception('No auth token found. Please log in.');
+    if (token == null) {
+      throw Exception('No auth token found. Please log in.');
+    }
     return token;
   }
 
@@ -79,8 +114,7 @@ class ApiService {
     try {
       debugPrint('Initiating GitHub OAuth');
       
-      // Add mobile redirect URI
-      final mobileRedirect = Uri.encodeComponent('conthabit://auth/callback');
+      final mobileRedirect = Uri.encodeComponent(_mobileRedirectUrl);
       final response = await http
           .get(Uri.parse('$_baseUrl/auth/github/init?mobile_redirect=$mobileRedirect'))
           .timeout(const Duration(seconds: 10));
@@ -132,8 +166,20 @@ class ApiService {
       final token = data['token'] as String;
       debugPrint('Received token, saving...');
       
+      // Save the token to secure storage
       await saveAuthToken(token);
       debugPrint('Auth token saved successfully');
+
+      // Initialize anonymous Firebase session for app functionality
+      if (_auth.currentUser == null) {
+        try {
+          await _auth.signInAnonymously();
+          debugPrint('Anonymous Firebase session created');
+        } catch (e) {
+          debugPrint('Failed to create anonymous session (non-critical): $e');
+          // Continue even if anonymous sign-in fails
+        }
+      }
     } catch (e) {
       debugPrint('Error handling auth callback: $e');
       throw Exception('Failed to complete authentication: $e');

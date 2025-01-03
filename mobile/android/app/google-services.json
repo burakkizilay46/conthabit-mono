@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1053443906062",
+    "project_id": "conthabit-c3f5a",
+    "storage_bucket": "conthabit-c3f5a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1053443906062:android:761c0fe8eab6892d75fa5f",
+        "android_client_info": {
+          "package_name": "com.conthabit.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA4zbdfnU-U1Nepv6kJx7TTGf0lFDPD0rw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
