@@ -290,9 +290,10 @@ class ApiService {
     try {
       final headers = await _getHeaders();
       final response = await http
-          .get(Uri.parse('$_baseUrl/auth/profile'), headers: headers)
+          .get(Uri.parse('$_baseUrl/auth/user'), headers: headers)
           .timeout(const Duration(seconds: 10));
 
+      debugPrint('User profile response: ${response.body}');
       final data = _handleResponse(response);
       return UserModel.fromJson(data);
     } on TimeoutException {
@@ -301,6 +302,27 @@ class ApiService {
     } catch (e) {
       debugPrint('Error fetching user profile: $e');
       throw Exception('Failed to fetch user profile');
+    }
+  }
+
+  Future<Map<String, dynamic>> getUserSettings() async {
+    try {
+      // Get user data which includes the commit goal
+      final headers = await _getHeaders();
+      final response = await http
+          .get(Uri.parse('$_baseUrl/auth/user'), headers: headers)
+          .timeout(const Duration(seconds: 10));
+
+      debugPrint('User settings response: ${response.body}');
+      final data = _handleResponse(response);
+      final commitGoal = data['commitGoal'] ?? 1000;
+      debugPrint('Retrieved commit goal from user data: $commitGoal');
+      return {
+        'commitGoal': commitGoal,
+      };
+    } catch (e) {
+      debugPrint('Error getting user settings: $e');
+      throw Exception('Failed to get user settings');
     }
   }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:provider/provider.dart';
 import 'package:conthabit/theme/theme_provider.dart';
+import 'package:conthabit/services/api_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -11,8 +12,34 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
+  final ApiService _apiService = ApiService();
   TimeOfDay _reminderTime = const TimeOfDay(hour: 20, minute: 0);
   int _commitGoal = 1000;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSettings();
+  }
+
+  Future<void> _loadSettings() async {
+    try {
+      final settings = await _apiService.getUserSettings();
+      setState(() {
+        _commitGoal = settings['commitGoal'] ?? 1000;
+        _isLoading = false;
+      });
+    } catch (e) {
+      debugPrint('Error loading settings: $e');
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load settings: $e')),
+        );
+      }
+    }
+  }
 
   Future<void> _selectReminderTime() async {
     final TimeOfDay? picked = await showTimePicker(
@@ -142,7 +169,56 @@ class _SettingsScreenState extends State<SettingsScreen> {
       trailing: IconButton(
         icon: const Icon(Icons.edit),
         onPressed: () {
-          // TODO: Implement commit goal editing
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('Set Commit Goal'),
+              content: TextField(
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Number of commits',
+                  hintText: 'Enter your commit goal',
+                ),
+                controller: TextEditingController(text: _commitGoal.toString()),
+                onChanged: (value) {
+                  if (value.isNotEmpty) {
+                    final newGoal = int.tryParse(value);
+                    if (newGoal != null && newGoal > 0) {
+                      setState(() {
+                        _commitGoal = newGoal;
+                      });
+                    }
+                  }
+                },
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+                TextButton(
+                  onPressed: () async {
+                    try {
+                      await _apiService.updateCommitGoal(_commitGoal);
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Commit goal updated successfully')),
+                        );
+                        Navigator.pop(context);
+                      }
+                    } catch (e) {
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Failed to update commit goal: $e')),
+                        );
+                      }
+                    }
+                  },
+                  child: const Text('Save'),
+                ),
+              ],
+            ),
+          );
         },
       ),
     );

@@ -6,6 +6,7 @@ import 'package:conthabit/theme/theme_provider.dart';
 import 'package:conthabit/screens/login_screen.dart';
 import 'package:conthabit/screens/dashboard_screen.dart';
 import 'package:conthabit/screens/settings_screen.dart';
+import 'package:conthabit/screens/splash_screen.dart';
 import 'package:conthabit/services/api_service.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
@@ -27,7 +28,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         Provider.value(value: apiService),
       ],
-      child: MyApp(initialRoute: hasToken ? '/dashboard' : '/login'),
+      child: MyApp(initialRoute: hasToken ? '/splash' : '/login'),
     ),
   );
 }
@@ -54,6 +55,7 @@ class MyApp extends StatelessWidget {
               initialRoute: initialRoute,
               routes: {
                 '/login': (context) => const LoginScreen(),
+                '/splash': (context) => const SplashScreen(),
                 '/dashboard': (context) => const DashboardScreen(),
                 '/settings': (context) => const SettingsScreen(),
               },

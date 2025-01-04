@@ -15,13 +15,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
   final ApiService _apiService = ApiService();
   List<CommitModel>? _commits;
   bool? _hasCommittedToday;
-  bool _isLoading = true;
+  bool _isLoading = false;
   UserModel? _userProfile;
+  int _commitGoal = 1000;
 
   @override
   void initState() {
     super.initState();
     _loadData();
+  }
+
+  void _initializeData() {
+    final Map<String, dynamic>? args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+    
+    if (args != null) {
+      setState(() {
+        _userProfile = args['userProfile'] as UserModel?;
+        _commits = args['commits'] as List<CommitModel>?;
+        _hasCommittedToday = args['hasCommittedToday'] as bool?;
+        _commitGoal = args['commitGoal'] as int? ?? _commitGoal;
+      });
+    }
   }
 
   Future<void> _loadData() async {
@@ -38,11 +52,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
       debugPrint('Checking today\'s commit status...');
       final hasCommittedToday = await _apiService.hasCommittedToday();
       debugPrint('Has committed today: $hasCommittedToday');
+
+      // Fetch the user's commit goal
+      debugPrint('Fetching user settings...');
+      final settings = await _apiService.getUserSettings();
+      final commitGoal = settings['commitGoal'] as int? ?? 1000;
+      debugPrint('Commit goal loaded: $commitGoal');
       
       setState(() {
         _userProfile = userProfile;
         _commits = commits;
         _hasCommittedToday = hasCommittedToday;
+        _commitGoal = commitGoal;
         _isLoading = false;
       });
       debugPrint('Dashboard data loaded successfully');
@@ -95,6 +116,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ],
           ],
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: () => Navigator.pushNamed(context, '/settings').then((_) => _loadData()),
+          ),
+        ],
       ),
       body: SafeArea(
         child: _isLoading
@@ -132,8 +159,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (_commits == null) return const SizedBox.shrink();
 
     final totalCommits = _commits!.length;
-    const targetCommits = 1000; // You might want to make this configurable
-    final progress = totalCommits / targetCommits;
+    final progress = totalCommits / _commitGoal;
 
     return Card(
       child: Padding(
@@ -150,7 +176,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       width: 100.w,
                       height: 100.w,
                       child: CircularProgressIndicator(
-                        value: progress,
+                        value: progress.clamp(0.0, 1.0),
                         strokeWidth: 8.w,
                         backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.2),
                       ),
@@ -161,7 +187,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
-                          '${(progress * 100).toInt()}%',
+                          '${(progress * 100).toInt().clamp(0, 100)}%',
                           style: TextStyle(
                             fontSize: 24.sp,
                             fontWeight: FontWeight.bold,
@@ -203,7 +229,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                   ),
                   Text(
-                    'out of $targetCommits goal',
+                    'out of $_commitGoal goal',
                     style: TextStyle(
                       fontSize: 14.sp,
                       color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
