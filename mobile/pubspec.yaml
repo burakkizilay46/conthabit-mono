@@ -50,6 +50,10 @@ dependencies:
   flutter_secure_storage: ^9.0.0
   google_fonts: ^6.1.0
   lottie: ^2.7.0
+  confetti: ^0.7.0
+
+  # Charts
+  fl_chart: ^0.66.2
 
 dev_dependencies:
   flutter_test:

@@ -7,6 +7,7 @@ import 'package:conthabit/models/user_model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:conthabit/models/milestone_model.dart';
 
 class ApiService {
   static String get _baseUrl {
@@ -212,6 +213,13 @@ class ApiService {
       final data = _handleResponse(response);
       if (data == null) return [];
 
+      // Handle the new response format
+      if (data is Map<String, dynamic> && data.containsKey('commits')) {
+        final commits = data['commits'] as List;
+        return commits.map((json) => CommitModel.fromJson(json)).toList();
+      }
+
+      // Fallback for old format or unexpected response
       if (data is! List) {
         debugPrint('Unexpected response format: ${response.body}');
         return [];
@@ -240,7 +248,22 @@ class ApiService {
       }
 
       final data = _handleResponse(response);
-      return data?['hasCommitted'] as bool? ?? false;
+      
+      // Handle the new response format
+      if (data is Map<String, dynamic>) {
+        final hasCommitted = data['hasCommitted'] as bool? ?? false;
+        
+        // If there are new milestones, trigger a celebration
+        final newMilestones = data['newMilestones'] as List? ?? [];
+        if (newMilestones.isNotEmpty) {
+          // Notify the UI about new milestones (you'll need to implement this)
+          debugPrint('New milestones unlocked: $newMilestones');
+        }
+        
+        return hasCommitted;
+      }
+      
+      return false;
     } on TimeoutException {
       debugPrint('Request timed out while checking today\'s commits');
       throw Exception(
@@ -324,5 +347,64 @@ class ApiService {
       debugPrint('Error getting user settings: $e');
       throw Exception('Failed to get user settings');
     }
+  }
+
+  Future<List<MilestoneModel>> getMilestones() async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http
+          .get(Uri.parse('$_baseUrl/api/milestones'), headers: headers)
+          .timeout(const Duration(seconds: 30));
+
+      if (response.statusCode == 204) {
+        return _getDefaultMilestones();
+      }
+
+      final data = _handleResponse(response);
+      if (data == null || data is! List) {
+        return _getDefaultMilestones();
+      }
+
+      return data.map((json) => MilestoneModel.fromJson(json)).toList();
+    } catch (e) {
+      debugPrint('Error fetching milestones: $e');
+      return _getDefaultMilestones();
+    }
+  }
+
+  Future<List<MilestoneModel>> _getDefaultMilestones() async {
+    final commits = await getCommits();
+    final settings = await getUserSettings();
+    final commitGoal = settings['commitGoal'] as int? ?? 1000;
+
+    return [
+      MilestoneModel(
+        id: '1',
+        title: '25 Commits',
+        description: 'Complete 25 commits',
+        icon: Icons.star,
+        category: MilestoneCategory.commit,
+        targetValue: 25,
+        currentValue: commits.length,
+      ),
+      MilestoneModel(
+        id: '2',
+        title: '7-Day Streak',
+        description: 'Maintain a 7-day commit streak',
+        icon: Icons.local_fire_department,
+        category: MilestoneCategory.streak,
+        targetValue: 7,
+        currentValue: 0,
+      ),
+      MilestoneModel(
+        id: '3',
+        title: 'Halfway There',
+        description: 'Reach 50% of your commit goal',
+        icon: Icons.flag,
+        category: MilestoneCategory.goal,
+        targetValue: 50,
+        currentValue: ((commits.length / commitGoal) * 100).round(),
+      ),
+    ];
   }
 }

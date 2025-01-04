@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:conthabit/theme/app_theme.dart';
 import 'package:conthabit/theme/theme_provider.dart';
 import 'package:conthabit/screens/login_screen.dart';
 import 'package:conthabit/screens/dashboard_screen.dart';
 import 'package:conthabit/screens/settings_screen.dart';
 import 'package:conthabit/screens/splash_screen.dart';
+import 'package:conthabit/screens/onboarding_screen.dart';
 import 'package:conthabit/services/api_service.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
@@ -21,6 +23,15 @@ void main() async {
   // Initialize API service and check authentication state
   final apiService = ApiService();
   final hasToken = await apiService.getAuthToken() != null;
+  
+  // Check if onboarding is completed
+  final prefs = await SharedPreferences.getInstance();
+  final hasCompletedOnboarding = prefs.getBool('onboarding_completed') ?? false;
+
+  String initialRoute = '/onboarding';
+  if (hasCompletedOnboarding) {
+    initialRoute = hasToken ? '/splash' : '/login';
+  }
 
   runApp(
     MultiProvider(
@@ -28,7 +39,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         Provider.value(value: apiService),
       ],
-      child: MyApp(initialRoute: hasToken ? '/splash' : '/login'),
+      child: MyApp(initialRoute: initialRoute),
     ),
   );
 }
@@ -58,6 +69,7 @@ class MyApp extends StatelessWidget {
                 '/splash': (context) => const SplashScreen(),
                 '/dashboard': (context) => const DashboardScreen(),
                 '/settings': (context) => const SettingsScreen(),
+                '/onboarding': (context) => const OnboardingScreen(),
               },
             );
           },
