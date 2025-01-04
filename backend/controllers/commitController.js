@@ -1,5 +1,6 @@
 const axios = require('axios');
 const { db } = require('../services/firebaseService');
+const milestoneController = require('./milestoneController');
 
 // Start date for commit counting (January 1st, 2025)
 const COMMIT_COUNT_START_DATE = '2025-01-01T00:00:00Z';
@@ -45,7 +46,18 @@ const commitController = {
         })
       );
 
-      res.json(commits);
+      // Update user's total commits
+      await db.collection('users').doc(req.user.userId.toString()).update({
+        totalCommits: commits.length
+      });
+
+      // Check for new milestones
+      const newMilestones = await milestoneController.checkAndUpdateMilestones(req.user.userId.toString());
+
+      res.json({
+        commits,
+        newMilestones
+      });
     } catch (error) {
       console.error('Error fetching commits:', error);
       res.status(500).json({ error: 'Failed to fetch commits' });
@@ -74,7 +86,43 @@ const commitController = {
       );
 
       const hasCommitted = response.data.total_count > 0;
-      res.json({ hasCommitted });
+
+      // If committed today, update streak
+      if (hasCommitted) {
+        const lastCommitDate = userData.lastCommitDate ? new Date(userData.lastCommitDate) : null;
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
+
+        let currentStreak = userData.currentStreak || 0;
+        
+        if (lastCommitDate && lastCommitDate.toDateString() === yesterday.toDateString()) {
+          // Continued streak
+          currentStreak++;
+        } else if (!lastCommitDate || lastCommitDate.toDateString() !== today.toDateString()) {
+          // New streak
+          currentStreak = 1;
+        }
+
+        await db.collection('users').doc(req.user.userId.toString()).update({
+          lastCommitDate: today,
+          currentStreak: currentStreak
+        });
+
+        // Check for new milestones
+        const newMilestones = await milestoneController.checkAndUpdateMilestones(req.user.userId.toString());
+
+        res.json({ 
+          hasCommitted,
+          currentStreak,
+          newMilestones
+        });
+      } else {
+        res.json({ 
+          hasCommitted,
+          currentStreak: userData.currentStreak || 0,
+          newMilestones: []
+        });
+      }
     } catch (error) {
       console.error('Error checking today\'s commits:', error);
       res.status(500).json({ error: 'Failed to check today\'s commits' });

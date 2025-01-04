@@ -14,5 +14,13 @@ service cloud.firestore {
       allow create: if request.auth != null && 
                    request.resource.data.userId == request.auth.uid;
     }
+
+    // Milestones collection
+    match /milestones/{milestoneId} {
+      allow read: if request.auth != null && 
+                 resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null && 
+                   request.resource.data.userId == request.auth.uid;
+    }
   }
 } 

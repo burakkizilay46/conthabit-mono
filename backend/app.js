@@ -8,6 +8,7 @@ const { db } = require('./services/firebaseService');
 // Import routes
 const authRoutes = require('./routes/authRoutes');
 const commitRoutes = require('./routes/commitRoutes');
+const milestoneRoutes = require('./routes/milestoneRoutes');
 
 // Load environment variables
 dotenv.config();
@@ -25,6 +26,7 @@ app.use('/auth', authRoutes);
 
 // Protected routes
 app.use('/api', authMiddleware, commitRoutes);
+app.use('/api', authMiddleware, milestoneRoutes);
 
 // Basic health check route
 app.get('/health', (req, res) => {
