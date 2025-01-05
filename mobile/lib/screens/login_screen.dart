@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:conthabit/services/api_service.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:uni_links/uni_links.dart';
+import 'package:app_links/app_links.dart';
 import 'dart:async';
 import 'package:url_launcher/url_launcher_string.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -16,6 +16,7 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final ApiService _apiService = ApiService();
+  final _appLinks = AppLinks();
   bool _isLoading = false;
   bool _initialUriIsHandled = false;
   StreamSubscription? _uriLinkSubscription;
@@ -42,7 +43,7 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!_initialUriIsHandled) {
       _initialUriIsHandled = true;
       try {
-        final uri = await getInitialUri();
+        final uri = await _appLinks.getInitialAppLink();
         if (uri != null) {
           debugPrint('Initial URI received $uri');
           _handleIncomingLink(uri);
@@ -57,13 +58,11 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!mounted) return;
 
     _uriLinkSubscription?.cancel();
-    _uriLinkSubscription = uriLinkStream.listen(
-      (Uri? uri) {
+    _uriLinkSubscription = _appLinks.uriLinkStream.listen(
+      (Uri uri) {
         if (!mounted) return;
         debugPrint('URI received in stream: $uri');
-        if (uri != null) {
-          _handleIncomingLink(uri);
-        }
+        _handleIncomingLink(uri);
       },
       onError: (err) {
         debugPrint('URI stream error: $err');
@@ -180,7 +179,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _checkInitialUri() async {
     try {
-      final uri = await getInitialUri();
+      final uri = await _appLinks.getInitialAppLink();
       if (uri != null) {
         debugPrint('Initial URI on launch: $uri');
         _handleIncomingLink(uri);
