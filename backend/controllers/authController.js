@@ -68,7 +68,12 @@ const authController = {
         email: userData.email,
         avatarUrl: userData.avatar_url,
         accessToken,
-        createdAt: new Date()
+        createdAt: new Date(),
+        notificationSettings: {
+          enabled: true,
+          reminderTime: '20:00', // Default to 8 PM
+          updatedAt: new Date()
+        }
       });
       console.log('Stored user data in Firebase');
 

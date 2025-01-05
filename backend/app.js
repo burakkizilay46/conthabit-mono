@@ -3,15 +3,18 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const rateLimiter = require('./middleware/rateLimiter');
 const authMiddleware = require('./middleware/auth');
+
+// Load environment variables first
+dotenv.config();
+
+// Then initialize Firebase
 const { db } = require('./services/firebaseService');
 
 // Import routes
 const authRoutes = require('./routes/authRoutes');
 const commitRoutes = require('./routes/commitRoutes');
 const milestoneRoutes = require('./routes/milestoneRoutes');
-
-// Load environment variables
-dotenv.config();
+const notificationRoutes = require('./routes/notificationRoutes');
 
 // Initialize express app
 const app = express();
@@ -27,6 +30,7 @@ app.use('/auth', authRoutes);
 // Protected routes
 app.use('/api', authMiddleware, commitRoutes);
 app.use('/api', authMiddleware, milestoneRoutes);
+app.use('/api/notifications', authMiddleware, notificationRoutes);
 
 // Basic health check route
 app.get('/health', (req, res) => {
