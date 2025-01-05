@@ -407,4 +407,65 @@ class ApiService {
       ),
     ];
   }
+
+  // Notification Settings
+  Future<void> updateFCMToken(String token) async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http
+          .post(
+            Uri.parse('$_baseUrl/api/notifications/token'),
+            headers: headers,
+            body: jsonEncode({'fcmToken': token}),
+          )
+          .timeout(const Duration(seconds: 10));
+
+      _handleResponse(response);
+    } catch (e) {
+      debugPrint('Error updating FCM token: $e');
+      throw Exception('Failed to update FCM token: $e');
+    }
+  }
+
+  Future<void> updateNotificationSettings({
+    required bool enabled,
+    required String reminderTime,
+  }) async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http
+          .put(
+            Uri.parse('$_baseUrl/api/notifications/settings'),
+            headers: headers,
+            body: jsonEncode({
+              'enabled': enabled,
+              'reminderTime': reminderTime,
+            }),
+          )
+          .timeout(const Duration(seconds: 10));
+
+      _handleResponse(response);
+    } catch (e) {
+      debugPrint('Error updating notification settings: $e');
+      throw Exception('Failed to update notification settings: $e');
+    }
+  }
+
+  Future<Map<String, dynamic>> getNotificationSettings() async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http
+          .get(
+            Uri.parse('$_baseUrl/api/notifications/settings'),
+            headers: headers,
+          )
+          .timeout(const Duration(seconds: 10));
+
+      final data = _handleResponse(response);
+      return data as Map<String, dynamic>;
+    } catch (e) {
+      debugPrint('Error getting notification settings: $e');
+      throw Exception('Failed to get notification settings: $e');
+    }
+  }
 }

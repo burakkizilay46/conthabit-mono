@@ -55,6 +55,10 @@ dependencies:
   # Charts
   fl_chart: ^0.66.2
 
+  # Notification packages
+  flutter_local_notifications: ^16.3.2
+  timezone: ^0.9.2
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

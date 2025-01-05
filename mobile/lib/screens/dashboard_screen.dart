@@ -4,6 +4,7 @@ import 'package:conthabit/models/commit_model.dart';
 import 'package:conthabit/models/user_model.dart';
 import 'package:conthabit/models/milestone_model.dart';
 import 'package:conthabit/services/api_service.dart';
+import 'package:conthabit/screens/notification_settings_screen.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:confetti/confetti.dart';
 import 'dart:collection';
@@ -571,6 +572,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 icon: const Icon(Icons.settings),
                 onPressed: () => Navigator.pushNamed(context, '/settings')
                     .then((_) => _loadData()),
+              ),
+              IconButton(
+                icon: const Icon(Icons.notifications_outlined),
+                onPressed: () {
+                  Navigator.pushNamed(context, '/notification_settings');
+                },
               ),
             ],
           ),

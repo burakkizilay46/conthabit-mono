@@ -41,6 +41,8 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>UIViewControllerBasedStatusBarAppearance</key>
+	<false/>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
@@ -55,6 +57,51 @@
 			<key>CFBundleURLName</key>
 			<string>com.conthabit.app</string>
 		</dict>
+	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>This app needs camera access to scan QR codes</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>This app needs photos access to get QR code from photo library</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>This app needs microphone access for voice commands</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>This app needs location access for location-based features</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>This app needs location access for location-based features</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>This app needs location access for location-based features</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>This app needs FaceID access for biometric authentication</string>
+	<key>NSCalendarsUsageDescription</key>
+	<string>This app needs calendar access to schedule reminders</string>
+	<key>NSContactsUsageDescription</key>
+	<string>This app needs contacts access to share with friends</string>
+	<key>NSAppleMusicUsageDescription</key>
+	<string>This app needs music access for audio features</string>
+	<key>NSMotionUsageDescription</key>
+	<string>This app needs motion access for activity tracking</string>
+	<key>NSHealthShareUsageDescription</key>
+	<string>This app needs health data access for activity tracking</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>This app needs health data access for activity tracking</string>
+	<key>NSHomeKitUsageDescription</key>
+	<string>This app needs HomeKit access for home automation features</string>
+	<key>NSUserTrackingUsageDescription</key>
+	<string>This app needs tracking access to provide personalized features</string>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>This app needs bluetooth access for device connectivity</string>
+	<key>NSBluetoothPeripheralUsageDescription</key>
+	<string>This app needs bluetooth access for device connectivity</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>This app needs local network access for device discovery</string>
+	<key>NSRemindersUsageDescription</key>
+	<string>This app needs reminders access to schedule habit reminders</string>
+	<key>FirebaseAppDelegateProxyEnabled</key>
+	<false/>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+		<string>remote-notification</string>
 	</array>
 </dict>
 </plist>

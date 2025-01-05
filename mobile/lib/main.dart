@@ -9,16 +9,23 @@ import 'package:conthabit/screens/dashboard_screen.dart';
 import 'package:conthabit/screens/settings_screen.dart';
 import 'package:conthabit/screens/splash_screen.dart';
 import 'package:conthabit/screens/onboarding_screen.dart';
+import 'package:conthabit/screens/notification_settings_screen.dart';
 import 'package:conthabit/services/api_service.dart';
+import 'package:conthabit/services/notification_service.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Initialize Firebase with proper options
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  // Initialize notification service
+  final notificationService = NotificationService();
+  await notificationService.initialize();
 
   // Initialize API service and check authentication state
   final apiService = ApiService();
@@ -38,6 +45,7 @@ void main() async {
       providers: [
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         Provider.value(value: apiService),
+        Provider.value(value: notificationService),
       ],
       child: MyApp(initialRoute: initialRoute),
     ),
@@ -59,6 +67,7 @@ class MyApp extends StatelessWidget {
         return Consumer<ThemeProvider>(
           builder: (context, themeProvider, _) {
             return MaterialApp(
+              debugShowCheckedModeBanner: false,
               title: 'ContHabit',
               theme: AppTheme.lightTheme,
               darkTheme: AppTheme.darkTheme,
@@ -70,6 +79,7 @@ class MyApp extends StatelessWidget {
                 '/dashboard': (context) => const DashboardScreen(),
                 '/settings': (context) => const SettingsScreen(),
                 '/onboarding': (context) => const OnboardingScreen(),
+                '/notification_settings': (context) => const NotificationSettingsScreen(),
               },
             );
           },
